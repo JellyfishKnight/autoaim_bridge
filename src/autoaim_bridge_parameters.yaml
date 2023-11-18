@@ -1,0 +1,22 @@
+autoaim_bridge:
+  serial_name: {
+    type: string,
+    default_value: "autoaim_serial"
+  }
+  serial_baudrate: {
+    type: double,
+    default_value: 921600
+  }
+  serial_topic_name: {
+    type: string,
+    default_value: "/autoaim_bridge/receive_data"
+  }
+  target_topic_name: {
+    type: string,
+    default_value: "/predictor/target"
+  }
+  serial_timeout: {
+    type: int,
+    default_value: 200,
+    description: "serial timeout"
+  }
