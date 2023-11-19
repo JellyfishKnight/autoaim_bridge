@@ -88,77 +88,74 @@ void AutoaimBridge::receive_loop() {
         params_ = param_listener_->get_params();
         RCLCPP_INFO(logger_, "Parameters were updated");
     }
-    double time_gap = (time.seconds() - last_time_.seconds());
     serial_port_->read(read_buffer_, 1);
-    if (read_buffer_[0] == 0xAA) {
-        serial_->read(read_buffer_ + 1, 1);
-        if (read_buffer_[1] == 0xAA) {
-            serial_->read(read_buffer_ + 2, 17);
-            if (Resolver::verify_check_sum(read_buffer_)) {
-                if (params_.imu_mode == IMU_RVC_MODE) {
-                    Resolver::read_packet_to_imu_packet(read_buffer_, rvc_raw_packet_);
-                    Resolver::raw_to_imu_packet(imu_packet_, rvc_raw_packet_, time_gap);
-                } else if (params_.imu_mode == IMU_SHTP_MODE) {
-                    Resolver::read_packet_to_imu_packet(read_buffer_, shtp_raw_packet_);
-                    Resolver::raw_to_imu_packet(imu_packet_, shtp_raw_packet_, time_gap);
-                } else {
-                    RCLCPP_ERROR(logger_, "Unkown imu mode!");
-                    return ;
-                }
-                last_time_ = time;  
-            }
+    if (read_buffer_[0] == 0x5A) {
+        serial_port_->read(read_buffer_ + 1, 1);
+        serial_port_->read(read_buffer_ + 2, 50);
+        if (ReceivePacket::verify_check_sum(read_buffer_) && read_buffer_[50] == 0x6A) {
+            ReceivePacket::convert_read_buffer_to_recv_packet(read_buffer_, recv_packet_);
         }
     }
-    if (!is_inited_) {
-        init_yaw_ = imu_packet_.yaw;
-        is_inited_ = true;
-    }
-    // publish imu in euler format
-    sensor_interfaces::msg::ImuEuler imu_euler_msg;
-    imu_euler_msg.header.stamp = this->now();
-    imu_euler_msg.header.frame_id = "imu";
-    // caculate total yaw
-    imu_euler_msg.yaw = imu_packet_.yaw;
-    imu_euler_msg.pitch = imu_packet_.pitch;
-    imu_euler_msg.roll = imu_packet_.roll;
-    imu_euler_msg.init_yaw = init_yaw_;
-    imu_euler_pub_->publish(imu_euler_msg);
     // publish gimbal states
-    if (realtime_imu_pub_->trylock()) {
-        auto & state_msg = realtime_imu_pub_->msg_;
+    if (realtime_recv_pub_->trylock()) {
+        auto & state_msg = realtime_recv_pub_->msg_;
         geometry_msgs::msg::TransformStamped transform_stamped;
-        ///TODO:
-
-        // publish imu sensor data
-        realtime_imu_pub_->unlockAndPublish();
+        state_msg.header.frame_id = params_.frame_id;
+        state_msg.header.stamp = time;
+        state_msg.yaw = recv_packet_.yaw;
+        state_msg.pitch = recv_packet_.pitch;
+        RCLCPP_DEBUG(logger_, "yaw: %f", recv_packet_.yaw);
+        RCLCPP_DEBUG(logger_, "pitch: %f", recv_packet_.pitch);
+        state_msg.bullet_speed = recv_packet_.bullet_speed;
+        state_msg.target_color = recv_packet_.target_color;
+        state_msg.autoaim_mode = recv_packet_.autoaim_mode;
+        realtime_recv_pub_->unlockAndPublish();
         // transform from imu to yaw
-        transform_stamped.header.frame_id = params_.imu_frame_id;
-        transform_stamped.child_frame_id = params_.yaw_frame_id;
-        transform_stamped.header.stamp = realtime_imu_pub_->msg_.header.stamp;
+        transform_stamped.header.frame_id = "odom";
+        transform_stamped.child_frame_id = "gimbal_link";
+        transform_stamped.header.stamp = time;
         tf2::Quaternion q;
-        q.setRPY(0, pitch_, -yaw_ * M_PI / 180.0);
-        transform_stamped.transform.translation.x = params_.imu_to_yaw_joint_tvec[0];
-        transform_stamped.transform.translation.y = params_.imu_to_yaw_joint_tvec[1];
-        transform_stamped.transform.translation.z = params_.imu_to_yaw_joint_tvec[2];
-        transform_stamped.transform.rotation.x = q.x();
-        transform_stamped.transform.rotation.y = q.y();
-        transform_stamped.transform.rotation.z = q.z();
-        transform_stamped.transform.rotation.w = q.w();
+        q.setRPY(0, recv_packet_.pitch * M_PI / 180.0, -recv_packet_.yaw * M_PI / 180.0);
+        transform_stamped.transform.rotation = tf2::toMsg(q);
         dynamic_pub_->sendTransform(transform_stamped);
     }
-    last_imu_packet_ = imu_packet_;
-    RCLCPP_DEBUG(logger_, "yaw: %f", yaw_);
-    RCLCPP_DEBUG(logger_, "pitch: %f", pitch_);
-    RCLCPP_DEBUG(logger_, "roll: %f", roll_);
-
 }
 
 void AutoaimBridge::send_callback(autoaim_interfaces::msg::Target::SharedPtr msg) {
-
+    if (msg->tracking) {
+        send_packet_.tracking = 1;
+    } else {
+        send_packet_.tracking = 0;
+    }
+    if (msg->id[0] <= '9' && msg->id[0] >= '0') {
+        send_packet_.id = msg->id[0] - '0';
+    } else if (msg->id[0] == 'g') {
+        send_packet_.id = 7;
+    } else if (msg->id[0] == 'o') {
+        send_packet_.id = 8;
+    } else if (msg->id[0] == 'b') {
+        send_packet_.id = 9;
+    }    
+    send_packet_.armors_num = msg->armors_num;
+    send_packet_.x = msg->position.x;
+    send_packet_.y = msg->position.y;
+    send_packet_.z = msg->position.z;
+    send_packet_.yaw = msg->yaw;
+    send_packet_.vx = msg->velocity.x;
+    send_packet_.vy = msg->velocity.y;
+    send_packet_.vz = msg->velocity.z;
+    send_packet_.v_yaw = msg->v_yaw;
+    send_packet_.r1 = msg->radius_1;
+    send_packet_.r2 = msg->radius_2;
+    send_packet_.dz = msg->dz;
+    SendPacket::convert_send_packet_to_write_buffer(send_packet_, write_buffer_);
+    serial_port_->write(write_buffer_, 51);
 }
 
 AutoaimBridge::~AutoaimBridge() {
-
+    serial_port_->close();
+    recv_pub_.reset();
+    realtime_recv_pub_.reset();
 }
 
 } // namespace helios_cv

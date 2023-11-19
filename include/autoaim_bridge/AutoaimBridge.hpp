@@ -20,6 +20,8 @@
 #include "tf2_ros/transform_broadcaster.h"
 #include "tf2_ros/static_transform_broadcaster.h"
 #include "geometry_msgs/msg/transform_stamped.hpp"
+#include <tf2/LinearMath/Quaternion.h>
+#include <tf2_geometry_msgs/tf2_geometry_msgs.hpp>
 
 #include "autoaim_interfaces/msg/target.hpp"
 #include "autoaim_interfaces/msg/receive_data.hpp"

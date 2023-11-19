@@ -20,3 +20,9 @@ autoaim_bridge:
     default_value: 200,
     description: "serial timeout"
   }
+  frame_id: {
+    type: string,
+    default_value: "serial",
+    description: "serial frame id"
+  }
+  

@@ -11,6 +11,7 @@
 #pragma once
 
 #include <cstdint>
+#include <cstring>
 
 
 namespace helios_cv {
@@ -34,6 +35,32 @@ typedef struct SendPacket {
     float dz;  //两对装甲板之间的高低差值
     uint16_t checksum; // 前48字节相加和
     uint8_t SOF = 0xA6;
+
+    static void convert_send_packet_to_write_buffer(const SendPacket& packet, uint8_t* write_buffer) {
+        write_buffer[0] = packet.TOF;
+        write_buffer[1] = packet.tracking;
+        write_buffer[2] = packet.id;
+        write_buffer[3] = packet.armors_num;
+        std::memcpy(write_buffer + 4, &packet.x, 4);
+        std::memcpy(write_buffer + 8, &packet.y, 4);
+        std::memcpy(write_buffer + 12, &packet.z, 4);
+        std::memcpy(write_buffer + 16, &packet.yaw, 4);
+        std::memcpy(write_buffer + 20, &packet.vx, 4);
+        std::memcpy(write_buffer + 24, &packet.vy, 4);
+        std::memcpy(write_buffer + 28, &packet.vz, 4);
+        std::memcpy(write_buffer + 32, &packet.v_yaw, 4);
+        std::memcpy(write_buffer + 36, &packet.r1, 4);
+        std::memcpy(write_buffer + 40, &packet.r2, 4);
+        std::memcpy(write_buffer + 44, &packet.dz, 4);
+        // caculate checksum
+        uint16_t checksum = 0;
+        for (int i = 0; i < 48; i++) {
+            checksum += write_buffer[i];
+        }
+        std::memcpy(write_buffer + 48, &checksum, 2);
+        write_buffer[50] = packet.SOF;
+    }
+    
 }SendPacket;
 
 typedef struct ReceivePacket {
@@ -45,6 +72,29 @@ typedef struct ReceivePacket {
     float pitch;   // 直接转发陀螺仪pitch即可
     uint16_t checksum;  // 前16字节之和
     uint8_t SOF = 0x6A;
+
+    static bool verify_check_sum(uint8_t* read_buffer) {
+        uint16_t sum = 0;
+        for (int i = 0; i < 16; i++) {
+            sum += read_buffer[i];
+        }
+        // get checksum
+        uint16_t checksum = 0;
+        checksum = read_buffer[16] << 8 | read_buffer[17];
+        return sum == checksum;
+    }
+
+    static void convert_read_buffer_to_recv_packet(uint8_t* read_buffer, ReceivePacket& packet) {
+        packet.TOF = read_buffer[0];
+        packet.target_color = read_buffer[1];
+        packet.autoaim_mode = read_buffer[2];
+        std::memcpy(&packet.bullet_speed, read_buffer + 3, 4);
+        std::memcpy(&packet.yaw, read_buffer + 7, 4);
+        std::memcpy(&packet.pitch, read_buffer + 11, 4);
+        std::memcpy(&packet.checksum, read_buffer + 15, 2);
+        packet.SOF = read_buffer[17];
+    }
+
 }ReceivePacket;
 
 } // namespace helios_cv
