@@ -139,7 +139,9 @@ void AutoaimBridge::send_callback(autoaim_interfaces::msg::Target::SharedPtr msg
         send_packet_.id = 8;
     } else if (msg->id[0] == 'b') {
         send_packet_.id = 9;
-    }    
+    } else {
+        RCLCPP_WARN(logger_, "unknown id!");
+    }
     send_packet_.armors_num = msg->armors_num;
     send_packet_.x = msg->position.x;
     send_packet_.y = msg->position.y;
