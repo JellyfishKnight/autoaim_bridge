@@ -17,5 +17,6 @@ def generate_launch_description():
             package='autoaim_bridge',
             executable='autoaim_bridge_node',
             emulate_tty=True,
+            output='both',
         ),
     ])

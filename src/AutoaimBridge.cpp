@@ -56,7 +56,7 @@ AutoaimBridge::AutoaimBridge(const rclcpp::NodeOptions &options) : rclcpp::Node(
     RCLCPP_INFO(logger_, "Successfully activated!");
     // create publisher
     recv_pub_ = this->create_publisher<autoaim_interfaces::msg::ReceiveData>(
-        params_.serial_name, rclcpp::SystemDefaultsQoS()
+        params_.serial_topic_name, rclcpp::SystemDefaultsQoS()
     );
     realtime_recv_pub_ = std::make_shared<realtime_tools::RealtimePublisher<autoaim_interfaces::msg::ReceiveData>>(
         recv_pub_
@@ -89,11 +89,15 @@ void AutoaimBridge::receive_loop() {
         RCLCPP_INFO(logger_, "Parameters were updated");
     }
     serial_port_->read(read_buffer_, 1);
+    while (read_buffer_[0] != 0x5A && rclcpp::ok()) {
+        serial_port_->read(read_buffer_, 1);
+    }
     if (read_buffer_[0] == 0x5A) {
-        serial_port_->read(read_buffer_ + 1, 1);
-        serial_port_->read(read_buffer_ + 2, 50);
-        if (ReceivePacket::verify_check_sum(read_buffer_) && read_buffer_[50] == 0x6A) {
+        serial_port_->read(read_buffer_ + 1, 17);
+        if (ReceivePacket::verify_check_sum(read_buffer_) && read_buffer_[17] == 0x6A) {
             ReceivePacket::convert_read_buffer_to_recv_packet(read_buffer_, recv_packet_);
+        } else {
+            RCLCPP_WARN(logger_, "Checksum Failed!");
         }
     }
     // publish gimbal states
@@ -159,3 +163,6 @@ AutoaimBridge::~AutoaimBridge() {
 }
 
 } // namespace helios_cv
+
+#include "rclcpp_components/register_node_macro.hpp"
+RCLCPP_COMPONENTS_REGISTER_NODE(helios_cv::AutoaimBridge)

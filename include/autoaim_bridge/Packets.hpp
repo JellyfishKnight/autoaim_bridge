@@ -12,7 +12,8 @@
 
 #include <cstdint>
 #include <cstring>
-
+#include <rclcpp/logger.hpp>
+#include <rclcpp/logging.hpp>
 
 namespace helios_cv {
 
@@ -70,17 +71,18 @@ typedef struct ReceivePacket {
     float bullet_speed; // 弹速
     float yaw;   // total yaw
     float pitch;   // 直接转发陀螺仪pitch即可
-    uint16_t checksum;  // 前16字节之和
+    uint16_t checksum;  // 前15字节之和
     uint8_t SOF = 0x6A;
 
     static bool verify_check_sum(uint8_t* read_buffer) {
         uint16_t sum = 0;
-        for (int i = 0; i < 16; i++) {
+        for (int i = 0; i < 15; i++) {
             sum += read_buffer[i];
         }
         // get checksum
         uint16_t checksum = 0;
-        checksum = read_buffer[16] << 8 | read_buffer[17];
+        checksum = read_buffer[16];
+        checksum = (checksum << 8) | read_buffer[15];
         return sum == checksum;
     }
 
