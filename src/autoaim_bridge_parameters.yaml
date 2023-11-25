@@ -1,7 +1,7 @@
 autoaim_bridge:
   serial_name: {
     type: string,
-    default_value: "/dev/ttyACM0"
+    default_value: "/dev/ttyUSB0"
   }
   serial_baudrate: {
     type: double,

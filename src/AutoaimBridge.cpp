@@ -97,7 +97,8 @@ void AutoaimBridge::receive_loop() {
         if (ReceivePacket::verify_check_sum(read_buffer_) && read_buffer_[17] == 0x6A) {
             ReceivePacket::convert_read_buffer_to_recv_packet(read_buffer_, recv_packet_);
         } else {
-            RCLCPP_WARN(logger_, "Checksum Failed!");
+            RCLCPP_INFO(logger_, "packed end: %x", read_buffer_[17]);
+            RCLCPP_WARN(logger_, "Checksum Failed");
         }
     }
     // publish gimbal states
@@ -108,8 +109,8 @@ void AutoaimBridge::receive_loop() {
         state_msg.header.stamp = time;
         state_msg.yaw = recv_packet_.yaw;
         state_msg.pitch = recv_packet_.pitch;
-        RCLCPP_DEBUG(logger_, "yaw: %f", recv_packet_.yaw);
-        RCLCPP_DEBUG(logger_, "pitch: %f", recv_packet_.pitch);
+        // RCLCPP_INFO(logger_, "yaw: %f", recv_packet_.yaw);
+        // RCLCPP_INFO(logger_, "pitch: %f", recv_packet_.pitch);
         state_msg.bullet_speed = recv_packet_.bullet_speed;
         state_msg.target_color = recv_packet_.target_color;
         state_msg.autoaim_mode = recv_packet_.autoaim_mode;
@@ -119,7 +120,7 @@ void AutoaimBridge::receive_loop() {
         transform_stamped.child_frame_id = "gimbal_link";
         transform_stamped.header.stamp = time;
         tf2::Quaternion q;
-        q.setRPY(0, recv_packet_.pitch * M_PI / 180.0, -recv_packet_.yaw * M_PI / 180.0);
+        q.setRPY(0, -recv_packet_.pitch * M_PI / 180.0, recv_packet_.yaw * M_PI / 180.0);
         transform_stamped.transform.rotation = tf2::toMsg(q);
         dynamic_pub_->sendTransform(transform_stamped);
     }
