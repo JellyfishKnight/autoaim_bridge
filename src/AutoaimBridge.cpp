@@ -11,6 +11,7 @@
 
 
 #include "AutoaimBridge.hpp"
+#include "Packets.hpp"
 
 
 namespace helios_cv {
@@ -141,7 +142,7 @@ void AutoaimBridge::send_callback(autoaim_interfaces::msg::Target::SharedPtr msg
     } else if (msg->id[0] == 'b') {
         send_packet_.id = 9;
     } else {
-        RCLCPP_WARN(logger_, "unknown id!");
+        RCLCPP_WARN(logger_, "unknown id! %s",  msg->id.c_str());
     }
     send_packet_.armors_num = msg->armors_num;
     send_packet_.x = msg->position.x;
