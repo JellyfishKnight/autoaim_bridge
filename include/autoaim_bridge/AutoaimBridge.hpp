@@ -77,13 +77,15 @@ private:
     // async parameter client
     // Param client to set detect_color and mode
     using ResultFuturePtr = std::shared_future<std::vector<rcl_interfaces::msg::SetParametersResult>>;
+    bool detector_res_ = false, predictor_res_ = false;
     bool mode_change_flag_ = false;
     bool color_change_flag_ = false;
     uint8_t previous_receive_color_ = 0;
     uint8_t last_autoaim_state_ = 0;
     rclcpp::AsyncParametersClient::SharedPtr detector_param_client_;
     rclcpp::AsyncParametersClient::SharedPtr predictor_param_client_;
-    ResultFuturePtr set_param_future_;
+    ResultFuturePtr set_detector_param_future_;
+    ResultFuturePtr set_predictor_param_future_;
     void check_and_set_param();
 
     // reset predictor client

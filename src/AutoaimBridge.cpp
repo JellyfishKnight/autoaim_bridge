@@ -103,11 +103,11 @@ void AutoaimBridge::receive_loop() {
         serial_port_->read(read_buffer_, 1);
     }
     if (read_buffer_[0] == 0x5A) {
-        serial_port_->read(read_buffer_ + 1, 17);
-        if (ReceivePacket::verify_check_sum(read_buffer_) && read_buffer_[17] == 0x6A) {
+        serial_port_->read(read_buffer_ + 1, 18);
+        if (ReceivePacket::verify_check_sum(read_buffer_) && read_buffer_[18] == 0x6A) {
             ReceivePacket::convert_read_buffer_to_recv_packet(read_buffer_, recv_packet_);
         } else {
-            RCLCPP_INFO(logger_, "packed end: %x", read_buffer_[17]);
+            RCLCPP_INFO(logger_, "packed end: %x", read_buffer_[18]);
             RCLCPP_WARN(logger_, "Checksum Failed");
         }
     }
@@ -190,14 +190,13 @@ void AutoaimBridge::check_and_set_param() {
     }
     if (!mode_change_flag_ || last_autoaim_state_ != recv_packet_.autoaim_mode) {
         RCLCPP_INFO(logger_, "change autoaim mode");
-        bool detector_res = false, predictor_res = false;
         mode_change_flag_ = false;
         auto param = rclcpp::Parameter("is_armor_autoaim", recv_packet_.autoaim_mode);
-        if (!set_param_future_.valid() ||
-            set_param_future_.wait_for(std::chrono::seconds(0)) == std::future_status::ready) {
+        if (!set_detector_param_future_.valid() ||
+            set_detector_param_future_.wait_for(std::chrono::seconds(0)) == std::future_status::ready) {
             RCLCPP_INFO(get_logger(), "detector is setting autoaim mode to %ld...", param.as_int());
-            set_param_future_ = detector_param_client_->set_parameters(
-            {param}, [this, param, &detector_res](const ResultFuturePtr & results) {
+            set_detector_param_future_ = detector_param_client_->set_parameters(
+            {param}, [this, param](const ResultFuturePtr & results) {
                     for (const auto & result : results.get()) {
                         if (!result.successful) {
                             RCLCPP_ERROR(get_logger(), "detector has failed to set parameter: %s", result.reason.c_str());
@@ -205,15 +204,15 @@ void AutoaimBridge::check_and_set_param() {
                         }
                     }
                     RCLCPP_INFO(get_logger(), "detector has successfully set autoaim to %ld!", param.as_int());
-                    detector_res = true;
+                    detector_res_ = true;
                 }   
             );
         }
-        if (!set_param_future_.valid() ||
-            set_param_future_.wait_for(std::chrono::seconds(0)) == std::future_status::ready) {
+        if (!set_predictor_param_future_.valid() ||
+            set_predictor_param_future_.wait_for(std::chrono::seconds(0)) == std::future_status::ready) {
             RCLCPP_INFO(get_logger(), "predictor is setting autoaim mode to %ld...", param.as_int());
-            set_param_future_ = predictor_param_client_->set_parameters(
-                {param}, [this, param, &predictor_res](const ResultFuturePtr & results) {
+            set_predictor_param_future_ = predictor_param_client_->set_parameters(
+                {param}, [this, param](const ResultFuturePtr & results) {
                     for (const auto & result : results.get()) {
                         if (!result.successful) {
                             RCLCPP_ERROR(get_logger(), "predictor has failed to set parameter: %s", result.reason.c_str());
@@ -221,20 +220,21 @@ void AutoaimBridge::check_and_set_param() {
                         }
                     }
                     RCLCPP_INFO(get_logger(), "predictor has successfully set autoaim to %ld!", param.as_int());
-                    predictor_res = true;
+                    predictor_res_ = true;
                 }
             );
         }
-        mode_change_flag_ = detector_res && predictor_res;
+        mode_change_flag_ = detector_res_ && predictor_res_;
+        last_autoaim_state_ = recv_packet_.autoaim_mode;
     }
     if (!color_change_flag_ || previous_receive_color_ != recv_packet_.target_color) {
         RCLCPP_INFO(logger_, "change detector color");
         auto param = rclcpp::Parameter("is_blue", recv_packet_.target_color);
         color_change_flag_ = false;
-        if (!set_param_future_.valid() ||
-            set_param_future_.wait_for(std::chrono::seconds(0)) == std::future_status::ready) {
+        if (!set_detector_param_future_.valid() ||
+            set_detector_param_future_.wait_for(std::chrono::seconds(0)) == std::future_status::ready) {
             RCLCPP_INFO(get_logger(), "detector is setting color to %ld...", param.as_int());
-            set_param_future_ = detector_param_client_->set_parameters(
+            set_detector_param_future_ = detector_param_client_->set_parameters(
             {param}, [this, param](const ResultFuturePtr & results) {
                     for (const auto & result : results.get()) {
                         if (!result.successful) {
@@ -247,6 +247,7 @@ void AutoaimBridge::check_and_set_param() {
                 }
             );
         }
+        previous_receive_color_ = recv_packet_.target_color;
     }
 }
 
