@@ -76,6 +76,8 @@ AutoaimBridge::AutoaimBridge(const rclcpp::NodeOptions &options) : rclcpp::Node(
     // Detect parameter client
     detector_param_client_ = std::make_shared<rclcpp::AsyncParametersClient>(this, "armor_detector");
     predictor_param_client_ = std::make_shared<rclcpp::AsyncParametersClient>(this, "armor_predictor");
+    // Reset predictor client
+    reset_predictor_client_ = this->create_client<std_srvs::srv::Trigger>("/predictor/reset");
     // set buffers to zero
     std::memset(read_buffer_, 0, sizeof(read_buffer_));
     std::memset(write_buffer_, 0, sizeof(write_buffer_));
@@ -134,6 +136,18 @@ void AutoaimBridge::receive_loop() {
     }
     // check if need to change state
     check_and_set_param();
+    // check if need to reset predictor
+    if (recv_packet_.reset_predictor == 1 || !reset_predictor_flag_) {
+        reset_predictor_flag_ = false;
+        if (!reset_predictor_client_->service_is_ready()) {
+            RCLCPP_WARN(get_logger(), "Service not ready, skipping tracker reset");
+            return;
+        }
+        auto request = std::make_shared<std_srvs::srv::Trigger::Request>();
+        reset_predictor_client_->async_send_request(request);
+        RCLCPP_INFO(get_logger(), "Reset tracker!");
+        reset_predictor_flag_ = true;
+    }
 }
 
 void AutoaimBridge::send_callback(autoaim_interfaces::msg::Target::SharedPtr msg) {

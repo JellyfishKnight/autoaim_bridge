@@ -14,20 +14,23 @@
 #include "realtime_tools/realtime_buffer.h"
 #include "realtime_tools/realtime_box.h"
 #include "realtime_tools/realtime_publisher.h"
+#include <rclcpp/parameter.hpp>
+#include <rclcpp/parameter_client.hpp>
+#include <rclcpp/service.hpp>
+
+#include <cstdint>
 
 #include "tf2/convert.h"
 #include "tf2_ros/buffer.h"
 #include "tf2_ros/transform_broadcaster.h"
 #include "tf2_ros/static_transform_broadcaster.h"
-#include "geometry_msgs/msg/transform_stamped.hpp"
-#include <cstdint>
-#include <rclcpp/parameter.hpp>
-#include <rclcpp/parameter_client.hpp>
 #include <tf2/LinearMath/Quaternion.h>
-#include <tf2_geometry_msgs/tf2_geometry_msgs.hpp>
 
 #include "autoaim_interfaces/msg/target.hpp"
 #include "autoaim_interfaces/msg/receive_data.hpp"
+#include <std_srvs/srv/trigger.hpp>
+#include "geometry_msgs/msg/transform_stamped.hpp"
+#include <tf2_geometry_msgs/tf2_geometry_msgs.hpp>
 
 #include "Packets.hpp"
 
@@ -82,6 +85,10 @@ private:
     rclcpp::AsyncParametersClient::SharedPtr predictor_param_client_;
     ResultFuturePtr set_param_future_;
     void check_and_set_param();
+
+    // reset predictor client
+    bool reset_predictor_flag_ = true;
+    rclcpp::Client<std_srvs::srv::Trigger>::SharedPtr reset_predictor_client_;
 
     SendPacket send_packet_;
     ReceivePacket recv_packet_;

@@ -68,15 +68,16 @@ typedef struct ReceivePacket {
     uint8_t TOF = 0x5A;
     uint8_t target_color; // 敌方颜色
     uint8_t autoaim_mode; // 0自瞄 1 小符 2 大符
+    uint8_t reset_predictor; // 1 reset
     float bullet_speed; // 弹速
     float yaw;   // total yaw
     float pitch;   // 直接转发陀螺仪pitch即可
-    uint16_t checksum;  // 前15字节之和
+    uint16_t checksum;  // 前16字节之和
     uint8_t SOF = 0x6A;
 
     static bool verify_check_sum(uint8_t* read_buffer) {
         uint16_t sum = 0;
-        for (int i = 0; i < 15; i++) {
+        for (int i = 0; i < 16; i++) {
             sum += read_buffer[i];
         }
         // get checksum
@@ -90,11 +91,12 @@ typedef struct ReceivePacket {
         packet.TOF = read_buffer[0];
         packet.target_color = read_buffer[1];
         packet.autoaim_mode = read_buffer[2];
-        std::memcpy(&packet.bullet_speed, read_buffer + 3, 4);
-        std::memcpy(&packet.yaw, read_buffer + 7, 4);
-        std::memcpy(&packet.pitch, read_buffer + 11, 4);
-        std::memcpy(&packet.checksum, read_buffer + 15, 2);
-        packet.SOF = read_buffer[17];
+        packet.reset_predictor = read_buffer[3];
+        std::memcpy(&packet.bullet_speed, read_buffer + 4, 4);
+        std::memcpy(&packet.yaw, read_buffer + 8, 4);
+        std::memcpy(&packet.pitch, read_buffer + 12, 4);
+        std::memcpy(&packet.checksum, read_buffer + 16, 2);
+        packet.SOF = read_buffer[18];
     }
 
 }ReceivePacket;
