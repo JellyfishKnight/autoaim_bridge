@@ -12,6 +12,10 @@
 
 #include "AutoaimBridge.hpp"
 #include "Packets.hpp"
+#include <memory>
+#include <rclcpp/logging.hpp>
+#include <rclcpp/parameter.hpp>
+#include <rclcpp/parameter_client.hpp>
 
 
 namespace helios_cv {
@@ -69,6 +73,9 @@ AutoaimBridge::AutoaimBridge(const rclcpp::NodeOptions &options) : rclcpp::Node(
         params_.target_topic_name, rclcpp::SystemDefaultsQoS(),
         std::bind(&AutoaimBridge::send_callback, this, std::placeholders::_1)
     );
+    // Detect parameter client
+    detector_param_client_ = std::make_shared<rclcpp::AsyncParametersClient>(this, "armor_detector");
+    predictor_param_client_ = std::make_shared<rclcpp::AsyncParametersClient>(this, "armor_predictor");
     // set buffers to zero
     std::memset(read_buffer_, 0, sizeof(read_buffer_));
     std::memset(write_buffer_, 0, sizeof(write_buffer_));
@@ -125,6 +132,8 @@ void AutoaimBridge::receive_loop() {
         transform_stamped.transform.rotation = tf2::toMsg(q);
         dynamic_pub_->sendTransform(transform_stamped);
     }
+    // check if need to change state
+    check_and_set_param();
 }
 
 void AutoaimBridge::send_callback(autoaim_interfaces::msg::Target::SharedPtr msg) {
@@ -160,11 +169,80 @@ void AutoaimBridge::send_callback(autoaim_interfaces::msg::Target::SharedPtr msg
     serial_port_->write(write_buffer_, 51);
 }
 
+void AutoaimBridge::check_and_set_param() {
+    if (!detector_param_client_->service_is_ready() || !predictor_param_client_->service_is_ready()) {
+        RCLCPP_WARN(get_logger(), "Service not ready, skipping parameter set");
+        return;
+    }
+    if (!mode_change_flag_ || last_autoaim_state_ != recv_packet_.autoaim_mode) {
+        RCLCPP_INFO(logger_, "change autoaim mode");
+        bool detector_res = false, predictor_res = false;
+        mode_change_flag_ = false;
+        auto param = rclcpp::Parameter("is_armor_autoaim", recv_packet_.autoaim_mode);
+        if (!set_param_future_.valid() ||
+            set_param_future_.wait_for(std::chrono::seconds(0)) == std::future_status::ready) {
+            RCLCPP_INFO(get_logger(), "detector is setting autoaim mode to %ld...", param.as_int());
+            set_param_future_ = detector_param_client_->set_parameters(
+            {param}, [this, param, &detector_res](const ResultFuturePtr & results) {
+                    for (const auto & result : results.get()) {
+                        if (!result.successful) {
+                            RCLCPP_ERROR(get_logger(), "detector has failed to set parameter: %s", result.reason.c_str());
+                            return;
+                        }
+                    }
+                    RCLCPP_INFO(get_logger(), "detector has successfully set autoaim to %ld!", param.as_int());
+                    detector_res = true;
+                }   
+            );
+        }
+        if (!set_param_future_.valid() ||
+            set_param_future_.wait_for(std::chrono::seconds(0)) == std::future_status::ready) {
+            RCLCPP_INFO(get_logger(), "predictor is setting autoaim mode to %ld...", param.as_int());
+            set_param_future_ = predictor_param_client_->set_parameters(
+                {param}, [this, param, &predictor_res](const ResultFuturePtr & results) {
+                    for (const auto & result : results.get()) {
+                        if (!result.successful) {
+                            RCLCPP_ERROR(get_logger(), "predictor has failed to set parameter: %s", result.reason.c_str());
+                            return;
+                        }
+                    }
+                    RCLCPP_INFO(get_logger(), "predictor has successfully set autoaim to %ld!", param.as_int());
+                    predictor_res = true;
+                }
+            );
+        }
+        mode_change_flag_ = detector_res && predictor_res;
+    }
+    if (!color_change_flag_ || previous_receive_color_ != recv_packet_.target_color) {
+        RCLCPP_INFO(logger_, "change detector color");
+        auto param = rclcpp::Parameter("is_blue", recv_packet_.target_color);
+        color_change_flag_ = false;
+        if (!set_param_future_.valid() ||
+            set_param_future_.wait_for(std::chrono::seconds(0)) == std::future_status::ready) {
+            RCLCPP_INFO(get_logger(), "detector is setting color to %ld...", param.as_int());
+            set_param_future_ = detector_param_client_->set_parameters(
+            {param}, [this, param](const ResultFuturePtr & results) {
+                    for (const auto & result : results.get()) {
+                        if (!result.successful) {
+                            RCLCPP_ERROR(get_logger(), "detector has failed to set parameter: %s", result.reason.c_str());
+                            return;
+                        }
+                    }
+                    RCLCPP_INFO(get_logger(), "detector has successfully set color to %ld!", param.as_int());
+                    color_change_flag_ = true;
+                }
+            );
+        }
+    }
+}
+
 AutoaimBridge::~AutoaimBridge() {
     serial_port_->close();
     recv_pub_.reset();
     realtime_recv_pub_.reset();
 }
+
+
 
 } // namespace helios_cv
 

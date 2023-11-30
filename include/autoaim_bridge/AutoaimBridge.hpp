@@ -20,6 +20,9 @@
 #include "tf2_ros/transform_broadcaster.h"
 #include "tf2_ros/static_transform_broadcaster.h"
 #include "geometry_msgs/msg/transform_stamped.hpp"
+#include <cstdint>
+#include <rclcpp/parameter.hpp>
+#include <rclcpp/parameter_client.hpp>
 #include <tf2/LinearMath/Quaternion.h>
 #include <tf2_geometry_msgs/tf2_geometry_msgs.hpp>
 
@@ -67,6 +70,18 @@ private:
 
     // subcriber
     rclcpp::Subscription<autoaim_interfaces::msg::Target>::SharedPtr target_sub_;
+
+    // async parameter client
+    // Param client to set detect_color and mode
+    using ResultFuturePtr = std::shared_future<std::vector<rcl_interfaces::msg::SetParametersResult>>;
+    bool mode_change_flag_ = false;
+    bool color_change_flag_ = false;
+    uint8_t previous_receive_color_ = 0;
+    uint8_t last_autoaim_state_ = 0;
+    rclcpp::AsyncParametersClient::SharedPtr detector_param_client_;
+    rclcpp::AsyncParametersClient::SharedPtr predictor_param_client_;
+    ResultFuturePtr set_param_future_;
+    void check_and_set_param();
 
     SendPacket send_packet_;
     ReceivePacket recv_packet_;
