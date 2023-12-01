@@ -185,16 +185,16 @@ void AutoaimBridge::send_callback(autoaim_interfaces::msg::Target::SharedPtr msg
 
 void AutoaimBridge::check_and_set_param() {
     if (!detector_param_client_->service_is_ready() || !predictor_param_client_->service_is_ready()) {
-        RCLCPP_WARN(get_logger(), "Service not ready, skipping parameter set");
+        RCLCPP_WARN_ONCE(get_logger(), "Service not ready, skipping parameter set");
         return;
     }
     if (!mode_change_flag_ || last_autoaim_state_ != recv_packet_.autoaim_mode) {
-        RCLCPP_INFO(logger_, "change autoaim mode");
+        RCLCPP_INFO_ONCE(logger_, "change autoaim mode");
         mode_change_flag_ = false;
         auto param = rclcpp::Parameter("autoaim_mode", recv_packet_.autoaim_mode);
         if (!set_detector_param_future_.valid() ||
             set_detector_param_future_.wait_for(std::chrono::seconds(0)) == std::future_status::ready) {
-            RCLCPP_INFO(get_logger(), "detector is setting autoaim mode to %ld...", param.as_int());
+            RCLCPP_INFO_ONCE(get_logger(), "detector is setting autoaim mode to %ld...", param.as_int());
             set_detector_param_future_ = detector_param_client_->set_parameters(
             {param}, [this, param](const ResultFuturePtr & results) {
                     for (const auto & result : results.get()) {
@@ -203,14 +203,14 @@ void AutoaimBridge::check_and_set_param() {
                             return;
                         }
                     }
-                    RCLCPP_INFO(get_logger(), "detector has successfully set autoaim to %ld!", param.as_int());
+                    RCLCPP_INFO_ONCE(get_logger(), "detector has successfully set autoaim to %ld!", param.as_int());
                     detector_res_ = true;
                 }   
             );
         }
         if (!set_predictor_param_future_.valid() ||
             set_predictor_param_future_.wait_for(std::chrono::seconds(0)) == std::future_status::ready) {
-            RCLCPP_INFO(get_logger(), "predictor is setting autoaim mode to %ld...", param.as_int());
+            RCLCPP_INFO_ONCE(get_logger(), "predictor is setting autoaim mode to %ld...", param.as_int());
             set_predictor_param_future_ = predictor_param_client_->set_parameters(
                 {param}, [this, param](const ResultFuturePtr & results) {
                     for (const auto & result : results.get()) {
@@ -219,7 +219,7 @@ void AutoaimBridge::check_and_set_param() {
                             return;
                         }
                     }
-                    RCLCPP_INFO(get_logger(), "predictor has successfully set autoaim to %ld!", param.as_int());
+                    RCLCPP_INFO_ONCE(get_logger(), "predictor has successfully set autoaim to %ld!", param.as_int());
                     predictor_res_ = true;
                 }
             );
@@ -228,12 +228,12 @@ void AutoaimBridge::check_and_set_param() {
         last_autoaim_state_ = recv_packet_.autoaim_mode;
     }
     if (!color_change_flag_ || previous_receive_color_ != recv_packet_.target_color) {
-        RCLCPP_INFO(logger_, "change detector color");
+        RCLCPP_INFO_ONCE(logger_, "change detector color");
         auto param = rclcpp::Parameter("is_blue", recv_packet_.target_color);
         color_change_flag_ = false;
         if (!set_detector_param_future_.valid() ||
             set_detector_param_future_.wait_for(std::chrono::seconds(0)) == std::future_status::ready) {
-            RCLCPP_INFO(get_logger(), "detector is setting color to %ld...", param.as_int());
+            RCLCPP_INFO_ONCE(get_logger(), "detector is setting color to %ld...", param.as_int());
             set_detector_param_future_ = detector_param_client_->set_parameters(
             {param}, [this, param](const ResultFuturePtr & results) {
                     for (const auto & result : results.get()) {
@@ -242,7 +242,7 @@ void AutoaimBridge::check_and_set_param() {
                             return;
                         }
                     }
-                    RCLCPP_INFO(get_logger(), "detector has successfully set color to %ld!", param.as_int());
+                    RCLCPP_INFO_ONCE(get_logger(), "detector has successfully set color to %ld!", param.as_int());
                     color_change_flag_ = true;
                 }
             );
