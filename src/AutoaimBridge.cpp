@@ -191,7 +191,7 @@ void AutoaimBridge::check_and_set_param() {
     if (!mode_change_flag_ || last_autoaim_state_ != recv_packet_.autoaim_mode) {
         RCLCPP_INFO(logger_, "change autoaim mode");
         mode_change_flag_ = false;
-        auto param = rclcpp::Parameter("is_armor_autoaim", recv_packet_.autoaim_mode);
+        auto param = rclcpp::Parameter("autoaim_mode", recv_packet_.autoaim_mode);
         if (!set_detector_param_future_.valid() ||
             set_detector_param_future_.wait_for(std::chrono::seconds(0)) == std::future_status::ready) {
             RCLCPP_INFO(get_logger(), "detector is setting autoaim mode to %ld...", param.as_int());
