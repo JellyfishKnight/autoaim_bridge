@@ -12,6 +12,7 @@
 
 #include "AutoaimBridge.hpp"
 #include "Packets.hpp"
+#include <cmath>
 #include <memory>
 #include <rclcpp/logging.hpp>
 #include <rclcpp/parameter.hpp>
@@ -103,11 +104,11 @@ void AutoaimBridge::receive_loop() {
         serial_port_->read(read_buffer_, 1);
     }
     if (read_buffer_[0] == 0x5A) {
-        serial_port_->read(read_buffer_ + 1, 18);
-        if (ReceivePacket::verify_check_sum(read_buffer_) && read_buffer_[18] == 0x6A) {
+        serial_port_->read(read_buffer_ + 1, 22);
+        if (ReceivePacket::verify_check_sum(read_buffer_) && read_buffer_[22] == 0x6A) {
             ReceivePacket::convert_read_buffer_to_recv_packet(read_buffer_, recv_packet_);
         } else {
-            RCLCPP_INFO(logger_, "packed end: %x", read_buffer_[18]);
+            RCLCPP_INFO(logger_, "packed end: %x", read_buffer_[22]);
             RCLCPP_WARN(logger_, "Checksum Failed");
         }
     }
@@ -130,7 +131,7 @@ void AutoaimBridge::receive_loop() {
         transform_stamped.child_frame_id = "gimbal_link";
         transform_stamped.header.stamp = time;
         tf2::Quaternion q;
-        q.setRPY(0, -recv_packet_.pitch * M_PI / 180.0, recv_packet_.yaw * M_PI / 180.0);
+        q.setRPY(recv_packet_.roll * M_PI / 180.0, -recv_packet_.pitch * M_PI / 180.0, recv_packet_.yaw * M_PI / 180.0);
         transform_stamped.transform.rotation = tf2::toMsg(q);
         dynamic_pub_->sendTransform(transform_stamped);
     }
@@ -179,8 +180,9 @@ void AutoaimBridge::send_callback(autoaim_interfaces::msg::Target::SharedPtr msg
     send_packet_.r1 = msg->radius_1;
     send_packet_.r2 = msg->radius_2;
     send_packet_.dz = msg->dz;
+    send_packet_.vision_delay = (this->now() - msg->header.stamp).seconds();
     SendPacket::convert_send_packet_to_write_buffer(send_packet_, write_buffer_);
-    serial_port_->write(write_buffer_, 51);
+    serial_port_->write(write_buffer_, 55);
 }
 
 void AutoaimBridge::check_and_set_param() {

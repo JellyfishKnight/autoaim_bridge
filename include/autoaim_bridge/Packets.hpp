@@ -34,6 +34,7 @@ typedef struct SendPacket {
     float r1;   // 车辆第一个半径
     float r2;   // 车辆第二个半径
     float dz;  //两对装甲板之间的高低差值
+    float vision_delay; // 视觉处理消耗的全部时间
     uint16_t checksum; // 前48字节相加和
     uint8_t SOF = 0xA6;
 
@@ -53,13 +54,14 @@ typedef struct SendPacket {
         std::memcpy(write_buffer + 36, &packet.r1, 4);
         std::memcpy(write_buffer + 40, &packet.r2, 4);
         std::memcpy(write_buffer + 44, &packet.dz, 4);
+        std::memcpy(write_buffer + 48, &packet.vision_delay, 4);
         // caculate checksum
         uint16_t checksum = 0;
-        for (int i = 0; i < 48; i++) {
+        for (int i = 0; i < 52; i++) {
             checksum += write_buffer[i];
         }
-        std::memcpy(write_buffer + 48, &checksum, 2);
-        write_buffer[50] = packet.SOF;
+        std::memcpy(write_buffer + 52, &checksum, 2);
+        write_buffer[54] = packet.SOF;
     }
     
 }SendPacket;
@@ -72,18 +74,19 @@ typedef struct ReceivePacket {
     float bullet_speed; // 弹速
     float yaw;   // total yaw
     float pitch;   // 直接转发陀螺仪pitch即可
+    float roll;
     uint16_t checksum;  // 前16字节之和
     uint8_t SOF = 0x6A;
 
     static bool verify_check_sum(uint8_t* read_buffer) {
         uint16_t sum = 0;
-        for (int i = 0; i < 16; i++) {
+        for (int i = 0; i < 20; i++) {
             sum += read_buffer[i];
         }
         // get checksum
         uint16_t checksum = 0;
-        checksum = read_buffer[17];
-        checksum = (checksum << 8) | read_buffer[16];
+        checksum = read_buffer[21];
+        checksum = (checksum << 8) | read_buffer[20];
         if (sum != checksum)
             RCLCPP_WARN(rclcpp::get_logger("debug"), "checksum %d sum %d", checksum, sum);
         return sum == checksum;
@@ -97,6 +100,7 @@ typedef struct ReceivePacket {
         std::memcpy(&packet.bullet_speed, read_buffer + 4, 4);
         std::memcpy(&packet.yaw, read_buffer + 8, 4);
         std::memcpy(&packet.pitch, read_buffer + 12, 4);
+        std::memcpy(&packet.roll, read_buffer + 16, 4);
         std::memcpy(&packet.checksum, read_buffer + 16, 2);
         packet.SOF = read_buffer[18];
     }
