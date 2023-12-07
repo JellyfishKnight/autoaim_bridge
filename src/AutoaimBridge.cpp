@@ -131,7 +131,7 @@ void AutoaimBridge::receive_loop() {
         transform_stamped.child_frame_id = "gimbal_link";
         transform_stamped.header.stamp = time;
         tf2::Quaternion q;
-        q.setRPY(recv_packet_.roll * M_PI / 180.0, -recv_packet_.pitch * M_PI / 180.0, recv_packet_.yaw * M_PI / 180.0);
+        q.setRPY(-recv_packet_.roll * M_PI / 180.0, -recv_packet_.pitch * M_PI / 180.0, recv_packet_.yaw * M_PI / 180.0);
         transform_stamped.transform.rotation = tf2::toMsg(q);
         dynamic_pub_->sendTransform(transform_stamped);
     }
