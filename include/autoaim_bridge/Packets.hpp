@@ -75,18 +75,21 @@ typedef struct ReceivePacket {
     float yaw;   // total yaw
     float pitch;   // 直接转发陀螺仪pitch即可
     float roll;
-    uint16_t checksum;  // 前16字节之和
+    float x;    // final target x
+    float y;    // final target y
+    float z;    // final target z
+    uint16_t checksum;  // 前32字节之和
     uint8_t SOF = 0x6A;
 
     static bool verify_check_sum(uint8_t* read_buffer) {
         uint16_t sum = 0;
-        for (int i = 0; i < 20; i++) {
+        for (int i = 0; i < 32; i++) {
             sum += read_buffer[i];
         }
         // get checksum
         uint16_t checksum = 0;
-        checksum = read_buffer[21];
-        checksum = (checksum << 8) | read_buffer[20];
+        checksum = read_buffer[33];
+        checksum = (checksum << 8) | read_buffer[32];
         if (sum != checksum)
             RCLCPP_WARN(rclcpp::get_logger("debug"), "checksum %d sum %d", checksum, sum);
         return sum == checksum;
@@ -101,8 +104,11 @@ typedef struct ReceivePacket {
         std::memcpy(&packet.yaw, read_buffer + 8, 4);
         std::memcpy(&packet.pitch, read_buffer + 12, 4);
         std::memcpy(&packet.roll, read_buffer + 16, 4);
-        std::memcpy(&packet.checksum, read_buffer + 16, 2);
-        packet.SOF = read_buffer[18];
+        std::memcpy(&packet.x, read_buffer + 20, 4);
+        std::memcpy(&packet.y, read_buffer + 24, 4);
+        std::memcpy(&packet.z, read_buffer + 28, 4);
+        std::memcpy(&packet.checksum, read_buffer + 32, 2);
+        packet.SOF = read_buffer[34];
     }
 
 }ReceivePacket;

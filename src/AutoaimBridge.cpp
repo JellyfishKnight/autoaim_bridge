@@ -104,11 +104,11 @@ void AutoaimBridge::receive_loop() {
         serial_port_->read(read_buffer_, 1);
     }
     if (read_buffer_[0] == 0x5A) {
-        serial_port_->read(read_buffer_ + 1, 22);
-        if (ReceivePacket::verify_check_sum(read_buffer_) && read_buffer_[22] == 0x6A) {
+        serial_port_->read(read_buffer_ + 1, 34);
+        if (ReceivePacket::verify_check_sum(read_buffer_) && read_buffer_[34] == 0x6A) {
             ReceivePacket::convert_read_buffer_to_recv_packet(read_buffer_, recv_packet_);
         } else {
-            RCLCPP_INFO(logger_, "packed end: %x", read_buffer_[22]);
+            RCLCPP_INFO(logger_, "packed end: %x", read_buffer_[34]);
             RCLCPP_WARN(logger_, "Checksum Failed");
         }
     }
@@ -125,6 +125,9 @@ void AutoaimBridge::receive_loop() {
         state_msg.bullet_speed = recv_packet_.bullet_speed;
         state_msg.target_color = recv_packet_.target_color;
         state_msg.autoaim_mode = recv_packet_.autoaim_mode;
+        state_msg.x = recv_packet_.x;
+        state_msg.y = recv_packet_.y;
+        state_msg.z = recv_packet_.z;
         realtime_recv_pub_->unlockAndPublish();
         // transform from imu to yaw
         transform_stamped.header.frame_id = "odom";
