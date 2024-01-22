@@ -14,6 +14,7 @@
 #include "Packets.hpp"
 #include <cmath>
 #include <memory>
+#include <rclcpp/duration.hpp>
 #include <rclcpp/logging.hpp>
 #include <rclcpp/parameter.hpp>
 #include <rclcpp/parameter_client.hpp>
@@ -93,7 +94,6 @@ AutoaimBridge::AutoaimBridge(const rclcpp::NodeOptions &options) : rclcpp::Node(
 }
 
 void AutoaimBridge::receive_loop() {
-    auto time = this->now();
     // update parameters if they have changed
     if (param_listener_->is_old(params_)) {
         params_ = param_listener_->get_params();
@@ -112,12 +112,13 @@ void AutoaimBridge::receive_loop() {
             RCLCPP_WARN(logger_, "Checksum Failed");
         }
     }
+    auto time = this->now();
     // publish gimbal states
     if (realtime_recv_pub_->trylock()) {
         auto & state_msg = realtime_recv_pub_->msg_;
         geometry_msgs::msg::TransformStamped transform_stamped;
         state_msg.header.frame_id = params_.frame_id;
-        state_msg.header.stamp = time;
+        state_msg.header.stamp = time + rclcpp::Duration::from_seconds(params_.time_stamp_offset);
         state_msg.yaw = recv_packet_.yaw;
         state_msg.pitch = recv_packet_.pitch;
         // RCLCPP_INFO(logger_, "yaw: %f", recv_packet_.yaw);
@@ -132,7 +133,7 @@ void AutoaimBridge::receive_loop() {
         // transform from imu to yaw
         transform_stamped.header.frame_id = "odom";
         transform_stamped.child_frame_id = "gimbal_link";
-        transform_stamped.header.stamp = time;
+        transform_stamped.header.stamp = time + rclcpp::Duration::from_seconds(params_.time_stamp_offset);;
         tf2::Quaternion q;
         q.setRPY(-recv_packet_.roll * M_PI / 180.0, -recv_packet_.pitch * M_PI / 180.0, recv_packet_.yaw * M_PI / 180.0);
         transform_stamped.transform.rotation = tf2::toMsg(q);

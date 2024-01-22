@@ -25,4 +25,8 @@ autoaim_bridge:
     default_value: "serial",
     description: "serial frame id"
   }
-  
+  time_stamp_offset: {
+    type: double,
+    default_value: 0,
+    description: "offset of time from MCU"
+  }
