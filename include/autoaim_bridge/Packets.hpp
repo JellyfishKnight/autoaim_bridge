@@ -90,8 +90,8 @@ typedef struct ReceivePacket {
         uint16_t checksum = 0;
         checksum = read_buffer[33];
         checksum = (checksum << 8) | read_buffer[32];
-        if (sum != checksum)
-            RCLCPP_WARN(rclcpp::get_logger("debug"), "checksum %d sum %d", checksum, sum);
+        // if (sum != checksum)
+        //     RCLCPP_WARN(rclcpp::get_logger("debug"), "checksum %d sum %d", checksum, sum);
         return sum == checksum;
     }
 

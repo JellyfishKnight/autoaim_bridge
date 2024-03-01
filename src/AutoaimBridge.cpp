@@ -108,8 +108,8 @@ void AutoaimBridge::receive_loop() {
         if (ReceivePacket::verify_check_sum(read_buffer_) && read_buffer_[34] == 0x6A) {
             ReceivePacket::convert_read_buffer_to_recv_packet(read_buffer_, recv_packet_);
         } else {
-            RCLCPP_INFO(logger_, "packed end: %x", read_buffer_[34]);
-            RCLCPP_WARN(logger_, "Checksum Failed");
+            // RCLCPP_INFO(logger_, "packed end: %x", read_buffer_[34]);
+            // RCLCPP_WARN(logger_, "Checksum Failed");
         }
     }
     auto time = this->now();
