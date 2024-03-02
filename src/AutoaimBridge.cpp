@@ -169,6 +169,8 @@ void AutoaimBridge::send_callback(autoaim_interfaces::msg::Target::SharedPtr msg
         send_packet_.id = 8;
     } else if (msg->id[0] == 'b') {
         send_packet_.id = 9;
+    } else if (msg->id[0] == 'e') {
+        send_packet_.id = 10;
     } else {
         RCLCPP_WARN_ONCE(logger_, "unknown id! %s",  msg->id.c_str());
     }
